@@ -4,8 +4,6 @@ ARG user
 ARG uid
 ARG gid
 ARG DEBIAN_FRONTEND=noninteractive
-ENV NVIDIA_VISIBLE_DEVICES=${NVIDIA_VISIBLE_DEVICES:-all}
-ENV NVIDIA_DRIVER_CAPABILITIES=${NVIDIA_DRIVER_CAPABILITIES:+$NVIDIA_DRIVER_CAPABILITIES,}graphics
 
 COPY ./000-default.conf /tmp/000-default.conf
 
@@ -31,8 +29,9 @@ RUN apt-get install -y \
     ccache \
     wget \
     rsync \
-    libssl-dev
-
+    libssl-dev \
+    net-tools \
+    vim
 
 RUN apt-get install -y php php-fpm php-zip php-curl php-gd php-xml php-mbstring php-mysqli
 RUN usermod -a -G www-data $user
