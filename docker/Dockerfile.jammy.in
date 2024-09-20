@@ -1,0 +1,54 @@
+FROM __image__
+
+ARG user
+ARG uid
+ARG gid
+ARG DEBIAN_FRONTEND=noninteractive
+ENV NVIDIA_VISIBLE_DEVICES=${NVIDIA_VISIBLE_DEVICES:-all}
+ENV NVIDIA_DRIVER_CAPABILITIES=${NVIDIA_DRIVER_CAPABILITIES:+$NVIDIA_DRIVER_CAPABILITIES,}graphics
+
+COPY ./000-default.conf /tmp/000-default.conf
+
+# RUN useradd -ms /bin/bash $user
+RUN adduser $user --disabled-password  --gecos ""
+RUN usermod -a -G sudo $user
+
+RUN mkdir -p /home/$user/workspace/
+
+RUN echo "dash dash/sh boolean false" | debconf-set-selections
+ENV DEBIAN_FRONTEND=noninteractive
+RUN dpkg-reconfigure dash
+
+RUN apt-get update
+
+RUN apt-get install -y software-properties-common curl wget
+RUN apt-get install -y \
+    bash-completion \
+    locales \
+    build-essential \
+    lsb-release \
+    sudo \
+    ccache \
+    wget \
+    rsync \
+    libssl-dev
+
+
+RUN apt-get install -y php php-fpm php-zip php-curl php-gd php-xml php-mbstring php-mysqli
+RUN usermod -a -G www-data $user
+
+RUN chgrp www-data /var/www/html
+RUN chmod g+w /var/www/html
+
+
+RUN echo "${user} ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
+USER ${user}
+# WORKDIR /home/${user}
+
+SHELL ["/bin/bash", "-c"]
+
+RUN sudo cp -f /tmp/000-default.conf /etc/apache2/sites-available/000-default.conf 
+RUN sudo a2enmod rewrite
+RUN sudo service apache2 restart
+
+

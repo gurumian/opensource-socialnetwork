@@ -1,0 +1,103 @@
+#!/bin/bash
+
+
+ARCH=`uname -m`
+
+model=ossn
+
+name=$model
+
+function print_usage() {
+    echo "e.g. $0 jammy amd64"
+}
+
+base_image="ubuntu"
+argc=$#
+if [ $argc -eq 0 ]
+then
+    print_usage
+else
+    target_arch=$2
+    lsb_release_code=$1
+    base_tag=$lsb_release_code
+    if [ $lsb_release_code = "bionic" ]
+    then
+        tag="noetic" # "18.04"
+        ubuntu_ver="18.04"
+    elif [ $lsb_release_code = "focal" ]
+    then
+        tag="foxy" # "20.04"
+        ubuntu_ver="20.04"
+    elif [ $lsb_release_code = "jammy" ]
+    then
+        tag=$ubuntu_22_ros2_code # "22.04"
+        ubuntu_ver="22.04"
+    else
+        print_usage
+        exit 0
+    fi
+
+    if [ $argc -eq 2 ]
+    then
+        if [ $target_arch = "arm64" ] && [ "$ARCH" = "x86_64" ]
+        then
+            base_image="arm64v8\/$base_image"
+            sudo apt-get install -y qemu binfmt-support qemu-user-static
+        else
+            echo "unhandled $target_arch"
+        fi
+    fi
+fi
+
+echo "$base_image"
+
+if [ ! -z $ubuntu_ver ]
+then
+    base_image=$base_image$ubuntu_ver
+fi
+
+base_image="nvidia\/cuda:11.8.0-devel-$base_image"
+echo "$base_image"
+
+#docker_name=$target_arch\/$name:$lsb_release_code
+docker_name=$target_arch\/$tag\/$name:$lsb_release_code
+docker_images=$(docker images -q $docker_name)
+
+
+docker_name=$target_arch\/$name:$lsb_release_code
+docker_images=$(docker images -q $docker_name)
+
+if [ -n "$docker_images" ]
+then
+    echo "$image already exists"
+else
+    sed "s/__image__/$base_image/g;" docker/Dockerfile.$lsb_release_code.in > docker/Dockerfile
+
+    pushd docker
+    docker build --build-arg user=$USER --build-arg user=$USER \
+    --build-arg uid=$(id -u) --build-arg gid=$(id -g) -t $docker_name .
+    popd
+fi
+
+# linux_cwd=/home/$USER${PWD/$HOME}
+# linux_cwd=/home/$USER${PWD/$HOME}
+linux_cwd=/var/www/html
+
+docker run \
+    -w $linux_cwd \
+    -v $PWD:$linux_cwd \
+    -v /dev:/dev \
+    -v /home/$USER/.ssh:/home/$USER/.ssh \
+    -v /etc/localtime:/etc/localtime:ro \
+    -v /tmp/.X11-unix:/tmp/.X11-unix:ro \
+    -e DISPLAY=unix$DISPLAY \
+    --privileged \
+    --network host \
+    -it --rm $docker_name
+
+    # --network host \
+    # -p 8080:80 \
+    
+
+# chgrp www-data /path/to/ossn_parent_directory
+# chmod g+w /path/to/ossn_parent_directory
